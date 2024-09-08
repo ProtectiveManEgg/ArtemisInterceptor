@@ -12,8 +12,8 @@ from adafruit_httpserver import Server, Request, Response, Websocket, GET, POST,
 from asyncio import create_task, gather, run, sleep as async_sleep
 
 # settings ------------------
-ssid = "Lord Of The Pings"
-passw = "#MyPr3c10us#"
+ssid = "ssid"
+passw = "pass"
 # ---------------------------
 led_1 = 37
 led_2 = 0
