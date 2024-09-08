@@ -39,5 +39,5 @@ class pixelPusher("SSID", "PASSWORD", channels, debug = False):
     channel = buff[1]
     data = bytes[2:]
 
-    retuen sequence, channel, data
+    return sequence, channel, data
 ```
