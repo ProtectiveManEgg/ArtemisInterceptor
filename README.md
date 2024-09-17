@@ -1,3 +1,5 @@
-I started this project because the RGB.NET PicoPi uf2 didn't work for me at all. The only part that worked was using Zadig to make the device reachable (lol).
+PixelPusher; like v1, but definitely better! Goal to port it to be used on different Pi version. Aim to run on a Pi 0.
 
-ArtemisRGB allows you to use a Pi Pico in place of a NodeMCU (sketch provided by DarthAffe). Deconstructing that sketch, and a lot of debugging later... The alpha version is brought to life.
+This client provides the ability to directly connect to ArtemisRGB (will link it later). Deconstructed the functions from RGB.NET (by DartheAffe and will also link it later).
+
+Note to self: update the note on line 200. ETIMEDOUT should be solved now, but that serves as a catch for if it ever happens again for whatever reason
