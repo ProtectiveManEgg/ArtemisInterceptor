@@ -1,211 +1,214 @@
-# sorry for bad/messy code. this script represents the alpha test
-
+# [ imports ] -------------------
+import wifi
 import board
 import json
-from rainbowio import colorwheel
-from time import sleep
-import wifi
-import socketpool as socket
-import neopixel
+import socketpool
+import microcontroller
 
-from adafruit_httpserver import Server, Request, Response, Websocket, GET, POST, PUT, DELETE
+from adafruit_httpserver import Server, Request, Response, GET, POST
+from neopixel import NeoPixel
 from asyncio import create_task, gather, run, sleep as async_sleep
+# [ imports ] -------------------
 
-# settings ------------------
+# [ settings ] ------------------
 ssid = "ssid"
-passw = "pass"
-# ---------------------------
-led_1 = 37
-led_2 = 0
-led_3 = 0
-led_4 = 0
+passw = "passw"
 
-ch_1 = board.GP8
-ch_2 = board.GP0
-ch_3 = board.GP6
-ch_4 = board.GP7
+channels = [
+	[board.GP8, 37], # change board.GP6 to board.D8 for a pi other than a pico
+	[board.GP0, 0],
+	[board.GP5, 0],
+	[board.GP6, 0]
+]
+brightness = 50 # 50%
 
-pixels = neopixel.NeoPixel(ch_1, led_1, auto_write=False)
-pixels.fill((255, 255, 255))
-pixels.show()
-# ---------------------------
+debug = True 
+# [ settings ] ------------------
 
-def connectWLAN():
-	try: # not finding wifi
-		net = None
-		for n in wifi.radio.start_scanning_networks():
-			#print(f"SSID: {n.ssid}, Strength: {n.rssi}, Channel: {n.channel}")
-			if n.ssid == ssid:
-				net = n
-				print("Found network. Attempting connection...")
-				break
+# [ pre-define ] ----------------
+buff_size = (255 * 3) + 2 # (saturation * RGB) + headers
+
+remote_ip = None		  # address of the remote connection
+udp_port = None			  # port to use for the UDP sock. Artemis sends `1872`
+http_port = 80			  # Artemis uses `80`
+host_ip = None			  # address of the local machine
+
+pool = socketpool.SocketPool(wifi.radio)
+udp = pool.socket(pool.AF_INET, pool.SOCK_DGRAM)
+udp.settimeout(0.01)
+
+server = Server(pool, debug = True)
+pixels = []
+# [ pre-define ] ----------------
+
+# [ functions ] -----------------
+def debugger(*arg, prefix = None):
+	if debug:
+		print((prefix is None and "[DEBUG]:" or "[ERROR]:"), *arg)
 		
-		wifi.radio.connect(ssid, passw) #, channel = net.channel)
-		return str(wifi.radio.ipv4_address)
-	except ConnectionError as e: # reboot pico when no wifi is found
-		print(e)
-		raise #microcontroller.reset()
-addr = connectWLAN()
+async def init():
+	global brightness
+	global pixels
+	
+	brightness /= 100
+	
+	host_ip = connectWLAN()
+	
+	debugger("Local IP:", host_ip)
+	
+	for i in range(len(channels)):
+		if channels[i][1] > 0: # only initialize channels with leds
+			pixels.insert(i, NeoPixel(channels[i][0], channels[i][1], auto_write = False))
 
-if addr is not None:
-	print("connected as:", addr)
-
-	pool = socket.SocketPool(wifi.radio)
-	pool.socket(pool.AF_INET, pool.SOCK_STREAM)
-
-	server = Server(pool, debug = True)
-	
-	udp = pool.socket(pool.AF_INET, pool.SOCK_DGRAM)
-	udp.settimeout(1.5)
-	cli_addr, port = None, None
-	
-	websocket: Websocket = None
-	
-	
-	def sendUDP(): # jjust so i dont forget
-		size, addr = s.sendto(b"hello world", (cli_addr, port))
+			pixels[i].fill((0, 255, 0))
+			pixels[i].show()
 		
-	async def readUDP(): # got hung up
-		global pixels
-		if cli_addr is not None: # 5 seconds to allow udp packets to be sent? bad idea, works for now
-			try:
-				buff = bytearray(256)
-				udp_size, _ =  udp.recvfrom_into(buff)
-				byte_list = list(buff[0:udp_size]) # shrink buffer to actual size
-				
-				seq = buff[0] # sequence; not important?
-				channel = buff[1] # channel of LEDs to talk to
-				
-				
-				leds = []
-				if channel == 1: # only programming one channel. make this better later
-					for i in range(udp_size - 2):
-						if i % 3 == 0:
-							# create next index. remember offset by 2 to account for seq and buff
-							leds.append((byte_list[i + 2], byte_list[i + 3], byte_list[i + 4])) # B-R-G??
-							
-					byte_list = None
-					
-					for i in range(len(leds)):
-						pixels[i] = leds[i]
-						#print(leds[i], pixels[i])
-					pixels.show()
+	debugger("Channels initiated:", len(pixels))
+	
+	if host_ip:
+		@server.route("/", POST)
+		def handleRoot(req: Request):
+			return success(req, body = f'''
+				<html>
+					<head>
+						<title>Artemis-RGB client in CircuitPython :)</title>
+					</head>
+					<body>
+						<h1>PixelPusher</h1>
+						This device is currently running CircuitPython on a Pi Pico!<br/>
+						<br/>
+						Check <a href="https://github.com/ProtectiveManEgg/PixelPusher">PixelPusher</a> for more info on this project!<br/>
+						Special thanks to <a href=\"https://github.com/DarthAffe/RGB.NET\">RGB.NET</a>! I based this project upon their NodeMCU Sketch!<br/>
+						<br/>
+						<h3>Configuration:</h3>
+						<b>UDP:</b> "{remote_ip is not None and "enabled (" + str(udp_port) + ")" or "disabled"}"<br/>
+						<br/>
+						<b>Channel 1</b><br/>
+						Leds: "{channels[0][1]}"<br/>
+						Pin: "{channels[0][0]}"<br/>
+						<br/>
+						<b>Channel 2</b><br/>
+						Leds: "{channels[1][1]}"<br/>
+						Pin: "{channels[1][0]}"<br/>
+						<br/>
+						<b>Channel 4</b><br/>
+						Leds: "{channels[2][1]}"<br/>
+						Pin: "{channels[2][0]}"<br/>
+						<br/>
+						<b>Channel 4</b><br/>
+						Leds: "{channels[3][1]}"<br/>
+						Pin: "{channels[3][0]}"<br/>
+						<br/>
+					</body>
+				</html>";
+			''')
+		
+		@server.route("/enableUDP", POST)
+		def enableUDP(req: Request):
+			global remote_ip
+			global udp_port
+			remote_ip = req.client_address[0]
+			udp_port = int(req.body)
 			
-			except Exception as e:
-				if e == KeyboardInterrupt:
-					pixels.fill((0, 0, 0))
-					pixels.show()
-					print("interrupted")
-				#else:
-				#	print(e)
+			udp.bind((host_ip, udp_port))
 			
+			return success(req)
+		
+		@server.route("/disableUDP", POST)
+		def disableUDP(req: Request):
+			remote_ip = None # this is my toggle for `readUDP`
+			udp.close()
 			
+			return success(req)
+		
+		@server.route("/reset", GET)
+		def handleReset(req: Request):
+			for i in range(len(pixels)):
+				pixels[i].fill((0, 0, 0))
+				pixels[i].show()
+			
+			return success(req)
+			
+		@server.route("/config", GET)
+		def handleConfig(req: Request):
+			config = [
+				{"channel": 1, "leds": channels[0][1]},
+				{"channel": 2, "leds": channels[1][1]},
+				{"channel": 3, "leds": channels[2][1]},
+				{"channel": 4, "leds": channels[3][1]}
+			]
+			
+			return success(req, body = json.dumps(config), json = True)
+		
+		@server.route("/update", POST)
+		def handleUpdate(req: Request):
+			# this is an alternate to the udp socket i think
+			# i've never actually seen it called
+			
+			return success(req)
+		
+		server.start(host_ip, port = http_port)
+		await gather(
+			create_task(poll())
+		)
+		
+		return True
+	else:
+		debugger("Not connection found!")
+		return False
+
+async def poll():
+	while True:
+		try:
+			server.poll()
+			create_task(readUDP()) # same thread will cause it to hang
+		except Exception as e:
+			if e == KeyboardInterrupt:
+				handleReset()
+				raise debugger("Interrupted by user", prefix = True)
+		
 		await async_sleep(0)
 
-	@server.route("/", [GET, POST, PUT, DELETE]) # POST?
-	def handleRoot(req: Request): # hard coded port need to fix
-		return Response(req, content_type = "text/plain", body = f'''
-				<head>\
-					<title>Artemis-RGB client in CircuitPython :)</title>\
-				</head>\
-				<body>\
-					<h1>RGB.NET</h1>\
-					This device is currently running CircuitPython on a Pi Pico!<br />\
-					<br />\
-					Check <a href=\"https://github.com/DarthAffe/RGB.NET\">https://github.com/DarthAffe/RGB.NET</a> for more info and the latest version of this sketch.<br />\
-					<br />\
-					<h3>Configuration:</h3>\
-					<b>UDP:</b>\enabled (1872)<br />\
-					<br />\		
-					<b>Channel 1</b><br />\
-					Leds: "{led_1}"<br />\
-					Pin: "{ch_2}"<br />\
-					<br />\
-					<b>Channel 2</b><br />\
-					Leds: "{led_2}"<br />\
-					Pin: "{ch_2}"<br />\
-					<br />\
-					<b>Channel 4</b><br />\
-					Leds: "{led_3}"<br />\
-					Pin: "{ch_3}"<br />\
-					<br />\
-					<b>Channel 4</b><br />\
-					Leds: "{led_4}"<br />\
-					Pin: "{ch_4}"<br />\
-					<br />\
-				</body>\
-			</html>";
-			'''
-		)
-		
-	@server.route("/enableUDP", POST)
-	def enableUDP(req: Request):
-		global cli_addr, port
-		cli_addr, port = req.client_address[0], int(req.body)
-		udp.bind((addr, port))
+def connectWLAN():
+	try:
+		wifi.radio.connect(ssid, passw) 
+		return str(wifi.radio.ipv4_address)
+	except ConnectionError as e: # todo: auto-reboot if no wifi found
+		handleReset()
+		debugger(e, prefix = True)
+		raise #microcontroller.reset()
 
-		return Response(req, content_type = "text/plain", body = "")
-		
-	@server.route("/disableUDP", [GET, POST, PUT, DELETE]) # POST?
-	def disableUDP(req: Request):
-		global cli_addr
-		cli_addr = None # could use this to check if "enabled"
-		udp.close()
-	
-		return Response(req, content_type = "text/plain", body = "")
-	
-	@server.route("/reset", GET)
-	def handleReset(req: Request):
-		pixels.fill((0, 0, 0)) # add the other channels later
-		pixels.show()
-		
-		return Response(req, content_type = "text/plain", body = "")
-	
-	@server.route("/config", GET)
-	def handleConfig(req: Request): # use built in json translation for the table
-		channels = [
-			{
-				"channel": 1,
-				"leds": led_1
-			},
-			{
-				"channel": 2,
-				"leds": led_2
-			},
-			{
-				"channel": 3,
-				"leds": led_3
-			},
-			{
-				"channel": 4,
-				"leds": led_4
-			}
-		]
-		return Response(req, content_type = "text/plain", body = json.dumps(channels))
+def success(req, body = "", json = False):
+	return Response(req, content_type = (json and "application/json" or "text/html"), body = body)
 
-	@server.route("/update", [GET, POST, PUT, DELETE]) # POST?
-	def handleUpdate(req: Request):
-		# dunno really what this is for?
-		
-		return Response(req, content_type = "text/plain", body = json.dumps(channels))
-	
-	# ---------
+async def readUDP(): # todo: this isn't receiving packets from Artemis!
+	if remote_ip is not None: # todo: this isn't receiving again. its failing after i changed
+		try:				  # the way i handle brightness!
+			buff = bytearray(buff_size)
+			size, _ = udp.recvfrom_into(buff)
+			seq, channel, bytes = buff[0], buff[1] - 1, list(buff[2:size])
 			
-	async def polling(): # need to manually poll
-		while True:
-			try:
-				server.poll()
-				create_task(readUDP())
-			except KeyboardInterrupt:
-				raise print("ERROR:", e)
-				
-			await async_sleep(0)
+			for i in range(channels[channel][1]):
+				pixels[channel][i] = (
+					int(bytes[(i * 3)] * brightness),     # R index / brightness
+					int(bytes[(i * 3) + 1] * brightness), # G index / brightness
+					int(bytes[(i * 3) + 2] * brightness)  # B index / brightness
+				)
+			
+			pixels[channel].show()
+		
+		except Exception as e: # this stops ETIMEDOUT from crashing the server
+			if e == KeyboardInterrupt:
+				handleReset()
+				debugger("Interrupted by user", prefix = True)
+		
+	await async_sleep(0)
+# [ functions ] -----------------
 
-	async def main():
-		#server.serve_forever(host = addr, port = 80, poll_interval = 0.1) blocking
-		server.start(addr, port = 80)
-		await gather(
-			create_task(polling()),
-		)
-	
-	run(main())
+# [ init ] ----------------------
+if __name__ == "__main__":
+	success = run(init())
+	if not success:
+		debugger("Rebooting...")
+		microcontroller.reset()
+		
