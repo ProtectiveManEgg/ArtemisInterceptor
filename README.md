@@ -11,7 +11,7 @@ This is a client for Artemis-RGB designed to drive led strips. Because this proj
 - adafruit_ticks (pre-requisite for asyncio)
 
 ## Installation
-Copy boot.py to your CircuitPython "drive," and install the above dependancies to the `/lib` folder.
+Copy `boot.py` to your CircuitPython "drive," and install the above dependancies to the `/lib` folder.
 
 I recommend the use of [circup](https://learn.adafruit.com/keep-your-circuitpython-libraries-on-devices-up-to-date-with-circup/install-circup) just out of its ease of use. To install the modules, simply run `circup install pkg_name`. Installing the pre-requisites are only necessary if installing [manually](https://circuitpython.org/libraries).
 
