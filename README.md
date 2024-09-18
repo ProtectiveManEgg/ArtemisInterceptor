@@ -12,10 +12,26 @@ This is a client for Artemis-RGB designed to drive led strips. Because this proj
 
 ## Installation
 Copy `boot.py` to your CircuitPython "drive," and install the above dependancies to the `/lib` folder.
+These instructions are pretty bare and have the expectation of the user being already familiar.
 
 I recommend the use of [circup](https://learn.adafruit.com/keep-your-circuitpython-libraries-on-devices-up-to-date-with-circup/install-circup) just out of its ease of use. To install the modules, simply run `circup install pkg_name`. Installing the pre-requisites are only necessary if installing [manually](https://circuitpython.org/libraries).
+
+- Once dependancies are installed, reboot your Pi Pico W! CircuitPython will start the HTTP server at boot.
+
+- Next, go to the Artemis client, and click settings. Switch to the Plugins tab and search for `ws281x`. Install `WS281x Devices`.
+
+- Once installed, click enable and open settings. 
+- Add device
+    - Display name can be whatever you want
+    - Device type: `ESP 8266`
+    - Hostname is the IPv4 address of your Pi
+
+Any issues with the program can be resolved with a reboot of the Pi, and reloading the plugin in Artemis. The Pi does have a periodic issue with connecting to WIFI where it provides an unknown connection error (errno 1). Not sure exactly what was causing it, but I seemed to have handled it. 
 
 ## Notes to self:
 - line 200 needs a better comment. ETIMEDOUT _should_ be fixed. Exception serves as a catch _just in case_.
 - Pi 0 version being experimented with. Uses CPython and different modules and procedures
 - drive 12v from PSU molex!
+- figure out what is causing the intermittent flickering! the level shifter did get wet!
+- draw a schematic for wiring this to the PSU/molex cable
+- make some sort of insulated backplate or mounting plate for the Pi and level shifterw
