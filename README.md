@@ -37,4 +37,5 @@ Any issues with the program can be resolved with a reboot of the Pi, and reloadi
 
 ## Test-bench Circuit Drawing
 ![now](https://img001.prntscr.com/file/img001/TqQdUkBRTA-IBeLW4pmjpw.png)
-It seems like the level shifter is unnecessary in this application. Will prototype the new design on the breadboard (still using the barrel jack). MOLEX power won't be prototyped until I get around to buying the new case and pull out the PSU.
+Thanks to `Senpo` on Discord for the heads up that the Pico probably can't drive too many LEDs without the shifter. Scratch that design!
+MOLEX power won't be prototyped until I get around to buying the new case and pull out the PSU.
