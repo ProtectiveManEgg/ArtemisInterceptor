@@ -33,6 +33,7 @@ Any issues with the program can be resolved with a reboot of the Pi, and reloadi
 - figure out what is causing the intermittent flickering! the level shifter did get wet!
 - make some sort of insulated backplate or mounting plate for the Pi
 - test more than 1 channel (lol)
+- should really add a check to make sure the buffer is actually set with new data. this could theoretically be causing the flickering if the UDP socket is reading no data and setting the empty bytes
 
 ## Test-bench Circuit Drawing
 ![now](https://img001.prntscr.com/file/img001/TqQdUkBRTA-IBeLW4pmjpw.png)
