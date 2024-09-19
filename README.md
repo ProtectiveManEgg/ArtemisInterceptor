@@ -29,9 +29,12 @@ I recommend the use of [circup](https://learn.adafruit.com/keep-your-circuitpyth
 Any issues with the program can be resolved with a reboot of the Pi, and reloading the plugin in Artemis. The Pi does have a periodic issue with connecting to WIFI where it provides an unknown connection error (errno 1). Not sure exactly what was causing it, but I seemed to have handled it. 
 
 ## Notes to self:
-- line 200 needs a better comment. ETIMEDOUT _should_ be fixed. Exception serves as a catch _just in case_.
 - Pi 0 version being experimented with. Uses CPython and different modules and procedures
-- drive 12v from PSU molex!
 - figure out what is causing the intermittent flickering! the level shifter did get wet!
-- draw a schematic for wiring this to the PSU/molex cable
-- make some sort of insulated backplate or mounting plate for the Pi and level shifterw
+- make some sort of insulated backplate or mounting plate for the Pi
+
+## Test-bench Circuit Drawing
+![now](https://img001.prntscr.com/file/img001/TqQdUkBRTA-IBeLW4pmjpw.png)
+It seems like the level shifter is unnecessary in this application. Will prototype the new design on the breadboard (still using the barrel jack). MOLEX power won't be prototyped until I get around to buying the new case and pull out the PSU.
+## Prototype Circuit Drawing
+![proto](https://img001.prntscr.com/file/img001/T2BKsR-xS9ehRgZAUrbjqQ.png)
