@@ -22,11 +22,12 @@ channels = [
 ]
 brightness = 50 # 50%
 
-debug = True 
+debug = True # enable this if problems arise
 # [ settings ] ------------------
 
 # [ pre-define ] ----------------
-buff_size = (255 * 3) + 2 # (saturation * RGB) + headers
+max_buffer_size = (255 * 3) + 2 # max buffer set by RGB.NET client
+buff_size = 0
 
 remote_ip = None		  # address of the remote connection
 udp_port = None			  # port to use for the UDP sock. Artemis sends `1872`
@@ -42,15 +43,29 @@ pixels = []
 # [ pre-define ] ----------------
 
 # [ functions ] -----------------
-def debugger(*arg, prefix = None):
+def debugger(*arg, prefix = None): # maybe make this write out to a log file
 	if debug:
 		print((prefix is None and "[DEBUG]:" or "[ERROR]:"), *arg)
-		
+
+def trueMax(t):
+	last = 0
+	for i in range(len(channels)):
+		if channels[i][1] > last:
+			last = channels[i][1]
+			
+	return last
+
 async def init():
 	global brightness
 	global pixels
-	
+	global buff_size
+
 	brightness /= 100
+	
+	buff_size = (trueMax(channels) * 3) + 2 # this is more useful and respective of resources.  (num_leds * RGB) + headers
+	if buff_size > max_buffer_size:
+		debugger(f"Too many LEDs: {(max_buffer_size - 2) / 3} / {(buff_size - 2) / 3}")
+		return False
 	
 	host_ip = connectWLAN()
 	
@@ -173,17 +188,17 @@ def connectWLAN():
 	try:
 		wifi.radio.connect(ssid, passw) 
 		return str(wifi.radio.ipv4_address)
-	except ConnectionError as e: # todo: auto-reboot if no wifi found
+	except ConnectionError as e:
 		handleReset()
 		debugger(e, prefix = True)
-		raise #microcontroller.reset()
+		raise
 
 def success(req, body = "", json = False):
 	return Response(req, content_type = (json and "application/json" or "text/html"), body = body)
 
-async def readUDP(): # todo: this isn't receiving packets from Artemis!
-	if remote_ip is not None: # todo: this isn't receiving again. its failing after i changed
-		try:				  # the way i handle brightness!
+async def readUDP():
+	if remote_ip is not None:
+		try:
 			buff = bytearray(buff_size)
 			size, _ = udp.recvfrom_into(buff)
 			seq, channel, bytes = buff[0], buff[1] - 1, list(buff[2:size])
