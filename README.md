@@ -1,6 +1,6 @@
 
 # PixelPusher
-This is a client for Artemis-RGB designed to drive led strips. Because this project utilizes WIFI, it can realistically drive a strip of LEDs anywhere from inside your PC case to under your desk. Only limit is power source! What inspired this project was RGB.NET for the Pi Pico. The firmware didn't work for me, and neither did the config. Either way, this project is a deconstruction of [DarthAffe](https://github.com/DarthAffe)'s [NodeMCU sketch](https://github.com/DarthAffe/RGB.NET/blob/master/RGB.NET.Devices.WS281X/Sketches/RGB.NET_NodeMCU.ino). I wanted the simplicity of using Python, and CircuitPython seemed like a good choice.
+This is a client for Artemis-RGB designed to drive led strips. Because this project utilizes WIFI, it can realistically drive a strip of LEDs anywhere from inside your PC case to under your desk. Only limit is power source! What inspired this project was RGB.NET for the Pi Pico W. The firmware didn't work for me, and neither did the config. Either way, this project is a deconstruction of [DarthAffe](https://github.com/DarthAffe)'s [NodeMCU sketch](https://github.com/DarthAffe/RGB.NET/blob/master/RGB.NET.Devices.WS281X/Sketches/RGB.NET_NodeMCU.ino). I wanted the simplicity of using Python, and CircuitPython seemed like a good choice.
 
 ## Dependencies 
 **I included libraries, but verify correct version**
