@@ -33,9 +33,12 @@ Any issues with the program can be resolved with a reboot of the Pi, and reloadi
 - figure out what is causing the intermittent flickering! the level shifter did get wet!
 - make some sort of insulated backplate or mounting plate for the Pi
 - test more than 1 channel (lol)
-- should really add a check to make sure the buffer is actually set with new data. this could theoretically be causing the flickering if the UDP socket is reading no data and setting the empty bytes
+- setup the new circuit and test it. test it with a barrel jack though
 
 ## Test-bench Circuit Drawing
 ![now](https://img001.prntscr.com/file/img001/TqQdUkBRTA-IBeLW4pmjpw.png)
-Thanks to `Senpo` on Discord for the heads up that the Pico probably can't drive too many LEDs without the shifter. Scratch that design!
 MOLEX power won't be prototyped until I get around to buying the new case and pull out the PSU.
+
+## New Prototype Circuit Drawing
+![soon](https://img001.prntscr.com/file/img001/ub9QsnBDRgu2pILgxJUxaQ.png)
+Thanks to `Senpo` on Discord for the heads up and potentially saving my Pi!
