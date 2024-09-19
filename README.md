@@ -32,6 +32,7 @@ Any issues with the program can be resolved with a reboot of the Pi, and reloadi
 - Pi 0 version being experimented with. Uses CPython and different modules and procedures
 - figure out what is causing the intermittent flickering! the level shifter did get wet!
 - make some sort of insulated backplate or mounting plate for the Pi
+- test more than 1 channel (lol)
 
 ## Test-bench Circuit Drawing
 ![now](https://img001.prntscr.com/file/img001/TqQdUkBRTA-IBeLW4pmjpw.png)
