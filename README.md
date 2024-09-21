@@ -2,6 +2,8 @@
 # PixelPusher
 This is a client for Artemis-RGB designed to drive led strips. Because this project utilizes WIFI, it can realistically drive a strip of LEDs anywhere from inside your PC case to under your desk. Only limit is power source! What inspired this project was RGB.NET for the Pi Pico W. The firmware didn't work for me, and neither did the config. Either way, this project is a deconstruction of [DarthAffe](https://github.com/DarthAffe)'s [NodeMCU sketch](https://github.com/DarthAffe/RGB.NET/blob/master/RGB.NET.Devices.WS281X/Sketches/RGB.NET_NodeMCU.ino). I wanted the simplicity of using Python, and CircuitPython seemed like a good choice.
 
+DarthAffe _did_ test if it worked on a Pico W and had success. It's likely just my environment. His firmware is _much_ simpler than this project. PixelPusher's creation is just for my own fun (and potentially yours).
+
 ## Dependencies 
 **I included libraries, but verify correct version**
 - adafruit_httpserver
@@ -35,9 +37,12 @@ Any issues with the program can be resolved with a reboot of the Pi, and reloadi
 - test more than 1 channel (lol)
 - setup the new circuit and test it. test it with a barrel jack though
 
-## Test-bench Circuit Drawing
-![now](https://img001.prntscr.com/file/img001/TqQdUkBRTA-IBeLW4pmjpw.png)
-MOLEX power won't be prototyped until I get around to buying the new case and pull out the PSU.
+## Test-bench Circuit Drawing [Updated]
+![now](https://img001.prntscr.com/file/img001/GI82y1pbQXigru18qJS_DA.png)
+Thanks to `DarthAffe` for why to use a resistor on the data line and a cap before the strip. Didn't resolve intermittent flickering, but did reduce it. Suspect cause is still the level shifter!
+Molex power won't be prototyped until I
+- ~Get the new case~
+- Find a sacrificial 4-pin Molex connector to mangle
 
 ## New Prototype Circuit Drawing
 ![soon](https://img001.prntscr.com/file/img001/ub9QsnBDRgu2pILgxJUxaQ.png)
