@@ -32,18 +32,14 @@ Any issues with the program can be resolved with a reboot of the Pi, and reloadi
 
 ## Notes to self:
 - Pi 0 version being experimented with. Uses CPython and different modules and procedures
-- figure out what is causing the intermittent flickering! the level shifter (and breadboard) did get wet!
 - make some sort of insulated backplate or mounting plate for the Pi
 - test more than 1 channel (lol)
-- setup the new circuit and test it. test it with a barrel jack though
+- New circuit design in testing. Brand new level shifter installed and soldered directly to Pico @VBUS (PIN40), @GND (PIN38), @GP22 (PIN29). No flickering; level shifter is the only _new_ component
 
 ## Test-bench Circuit Drawing [Updated]
-![now](https://img001.prntscr.com/file/img001/GI82y1pbQXigru18qJS_DA.png)
-Thanks to `DarthAffe` for why to use a resistor on the data line and a cap before the strip. Didn't resolve intermittent flickering, but did reduce it. Suspect cause is still the level shifter! Alternative cause is bad breadboard contacts because it _also_ got wet.
-Molex power won't be prototyped until I
-- ~Get the new case~
-- Find a sacrificial 4-pin Molex connector to mangle
+![now](https://img001.prntscr.com/file/img001/RzBI28xlTGqBL0jKfrJDoA.png)
+Thanks to `DarthAffe` and `Senpo` for why to use a resistor on the data line and a cap before the strip.
 
-## New Prototype Circuit Drawing
-![soon](https://img001.prntscr.com/file/img001/ub9QsnBDRgu2pILgxJUxaQ.png)
-Thanks to `Senpo` on Discord for the heads up and potentially saving my Pi!
+Molex power is prototyped and _does_ work. For testing, I will only be using the barrel connector in the off-chance that something goes wrong, I'd rather blow up the cheap external supply. Included the Molex connector in the drawing. Swap the place of the barrel connector for the final circuit. 
+
+Figure out how to power VSYS. 1N4001 drops my voltage from 5v to 1.5v which is just shy of powering the Pico. The diode is necessary to prevent any backfeeding. Unsure if this is necessary if I don't use the USB
