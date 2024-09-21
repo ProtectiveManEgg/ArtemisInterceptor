@@ -32,14 +32,14 @@ Any issues with the program can be resolved with a reboot of the Pi, and reloadi
 
 ## Notes to self:
 - Pi 0 version being experimented with. Uses CPython and different modules and procedures
-- figure out what is causing the intermittent flickering! the level shifter did get wet!
+- figure out what is causing the intermittent flickering! the level shifter (and breadboard) did get wet!
 - make some sort of insulated backplate or mounting plate for the Pi
 - test more than 1 channel (lol)
 - setup the new circuit and test it. test it with a barrel jack though
 
 ## Test-bench Circuit Drawing [Updated]
 ![now](https://img001.prntscr.com/file/img001/GI82y1pbQXigru18qJS_DA.png)
-Thanks to `DarthAffe` for why to use a resistor on the data line and a cap before the strip. Didn't resolve intermittent flickering, but did reduce it. Suspect cause is still the level shifter!
+Thanks to `DarthAffe` for why to use a resistor on the data line and a cap before the strip. Didn't resolve intermittent flickering, but did reduce it. Suspect cause is still the level shifter! Alternative cause is bad breadboard contacts because it _also_ got wet.
 Molex power won't be prototyped until I
 - ~Get the new case~
 - Find a sacrificial 4-pin Molex connector to mangle
