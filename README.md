@@ -44,5 +44,3 @@ Any issues with the program can be resolved with a reboot of the Pi, and reloadi
 Thanks to `DarthAffe` and `Senpo` for why to use a resistor on the data line and a cap before the strip.
 
 Molex power is prototyped and _does_ work. For testing, I will only be using the barrel connector in the off-chance that something goes wrong, I'd rather blow up the cheap external supply. Included the Molex connector in the drawing. Swap the place of the barrel connector for the final circuit. Powering from VSYS _does_ work. Save to `code.py` and reboot.
-
-Figure out how to power VSYS. 1N4001 drops my voltage from 5v to 1.5v which is just shy of powering the Pico. The diode is necessary to prevent any backfeeding. Unsure if this is necessary if I don't use the USB
