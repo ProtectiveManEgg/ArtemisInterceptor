@@ -37,6 +37,7 @@ Any issues with the program can be resolved with a reboot of the Pi, and reloadi
 - test more than 1 channel (lol)
 - bench the time it takes to boot to adjust the sleep before `init`. trying to connect wifi before this time will result in errno 1 (Unknown failure). to test this, i set a 5 second sleep and it booted fine
 - moved strip creation before wifi start to have a visual cue that the script hasn't errored before attempt to connect wifi
+- write a file editor in `debugger` to write logs for a USB-less boot
 
 ## Test-bench Circuit Drawing [Updated]
 ![now](https://img001.prntscr.com/file/img001/TrDUJjuISe-vrZhdo60_sQ.png)
