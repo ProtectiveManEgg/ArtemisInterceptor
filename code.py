@@ -15,14 +15,14 @@ ssid = "ssid"
 passw = "passw"
 
 channels = [
-	[board.GP22, 37], # change board.GP6 to board.D8 for a pi other than a pico
-	[board.GP0, 0],
+	[board.GP0, 37], # change board.GP6 to board.D8 for a pi other than a pico
+	[board.GP8, 0],
 	[board.GP5, 0],
 	[board.GP6, 0]
 ]
 brightness = 50 # 50%
 
-debug = True # enable this if problems arise
+debug = False # enable this if problems arise. requires being run in REPL right now
 # [ settings ] ------------------
 
 # [ pre-define ] ----------------
@@ -145,8 +145,6 @@ async def init():
 		debugger(f"Too many LEDs: {(max_buffer_size - 2) / 3} / {(buff_size - 2) / 3}")
 		return False
 	
-	host_ip = connectWLAN()
-	
 	debugger("Local IP:", host_ip)
 	
 	for i in range(len(channels)):
@@ -157,6 +155,8 @@ async def init():
 			pixels[i].show()
 		
 	debugger("Channels initiated:", len(pixels))
+
+	host_ip = connectWLAN() # moved after strip creation for visual indicator if this is causing it to terminate
 	
 	if host_ip:
 		server.add_routes([
@@ -230,6 +230,7 @@ async def readUDP():
 
 # [ init ] ----------------------
 if __name__ == "__main__":
+	sleep(5) # wait to make sure pico is booted before trying to start wifi
 	success = run(init())
 	if not success:
 		debugger("Rebooting...")
