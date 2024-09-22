@@ -31,15 +31,17 @@ I recommend the use of [circup](https://learn.adafruit.com/keep-your-circuitpyth
 Any issues with the program can be resolved with a reboot of the Pi, and reloading the plugin in Artemis. The Pi does have a periodic issue with connecting to WIFI where it provides an unknown connection error (errno 1). Not sure exactly what was causing it, but I seemed to have handled it. 
 
 ## Notes to self:
+- 3v3 (OUT) not 3v3_EN
 - Pi 0 version being experimented with. Uses CPython and different modules and procedures
 - make some sort of insulated backplate or mounting plate for the Pi
 - test more than 1 channel (lol)
-- New circuit design in testing. Brand new level shifter installed and soldered directly to Pico @VBUS (PIN40), @GND (PIN38), @GP22 (PIN29). No flickering; level shifter is the only _new_ component
+- bench the time it takes to boot to adjust the sleep before `init`. trying to connect wifi before this time will result in errno 1 (Unknown failure). to test this, i set a 5 second sleep and it booted fine
+- moved strip creation before wifi start to have a visual cue that the script hasn't errored before attempt to connect wifi
 
 ## Test-bench Circuit Drawing [Updated]
-![now](https://img001.prntscr.com/file/img001/RzBI28xlTGqBL0jKfrJDoA.png)
+![now](https://img001.prntscr.com/file/img001/TrDUJjuISe-vrZhdo60_sQ.png)
 Thanks to `DarthAffe` and `Senpo` for why to use a resistor on the data line and a cap before the strip.
 
-Molex power is prototyped and _does_ work. For testing, I will only be using the barrel connector in the off-chance that something goes wrong, I'd rather blow up the cheap external supply. Included the Molex connector in the drawing. Swap the place of the barrel connector for the final circuit. 
+Molex power is prototyped and _does_ work. For testing, I will only be using the barrel connector in the off-chance that something goes wrong, I'd rather blow up the cheap external supply. Included the Molex connector in the drawing. Swap the place of the barrel connector for the final circuit. Powering from VSYS _does_ work. Save to `code.py` and reboot.
 
 Figure out how to power VSYS. 1N4001 drops my voltage from 5v to 1.5v which is just shy of powering the Pico. The diode is necessary to prevent any backfeeding. Unsure if this is necessary if I don't use the USB
