@@ -1,0 +1,12 @@
+<html>
+<head>
+	<h1>PixelPusher Web Output [WIP]</h1>
+	<p>**maybe a text box for on-the-fly arbitrary code execution</p>
+	<pre id="box"></pre>
+	<script>
+		const outbox = document.getElementById("box")
+		console.log(location)
+		const sock = new WebSocket("ws://" + location.host + "/connectTCP");
+		sock.onmessage = event => outbox.textContent += event.data
+	</script>
+</html>
