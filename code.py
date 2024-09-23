@@ -4,8 +4,9 @@ import board
 import json
 import socketpool
 import microcontroller
+import time
 
-from adafruit_httpserver import Server, Request, Response, Route, GET, POST
+from adafruit_httpserver import Server, Request, Response, Route, FileResponse, Websocket, GET, POST
 from neopixel import NeoPixel
 from asyncio import create_task, gather, run, sleep as async_sleep
 # [ imports ] -------------------
@@ -22,7 +23,7 @@ channels = [
 ]
 brightness = 50 # 50%
 
-debug = False # enable this if problems arise. requires being run in REPL right now
+debug = True # enable this if problems arise
 # [ settings ] ------------------
 
 # [ pre-define ] ----------------
@@ -39,6 +40,10 @@ udp = pool.socket(pool.AF_INET, pool.SOCK_DGRAM)
 udp.settimeout(0.01)
 
 server = Server(pool, debug = True)
+tcp = None
+log_msg = ""
+served = False
+
 pixels = []
 # [ pre-define ] ----------------
 
@@ -117,12 +122,50 @@ def handleUpdate(req: Request):
 	# i've never actually seen it called
 	
 	return success(req)
+
+def serveConsole(req: Request):
+	return FileResponse(req, "console.html", "/sd")
+
+def connectTCP(req: Request): # write a receiver to process a cmd to send all previous log data instead
+							  # of relying on `served` since it needs a debug to happen to send it
+							  # can close the receiver right after since we just want `init`
+	global tcp
+	if tcp is not None:
+		tcp.close()
+		
+	tcp = Websocket(req)
+	
+	return tcp
 # [ server routes ] -------------
 
 # [ functions ] -----------------
+def convertTime(seconds):
+	seconds %= 24 * 3600
+	hour = seconds // 3600
+	seconds %= 3600
+	minutes = seconds // 60
+	seconds %= 60
+	
+	return "%02d:%02d:%02d" % (hour, minutes, seconds)
+
 def debugger(*arg, prefix = None): # maybe make this write out to a log file
+	global log_msg
+	global served
 	if debug:
-		print((prefix is None and "[DEBUG]:" or "[ERROR]:"), *arg)
+		# check if usb. usb => REPL, no usb => web console. todo: make it log to a file on the (small) flash. 
+		# dunno how to pull that off yet. unfortunately using the REPL blocks file writing in python
+		pre = (prefix is None and "DEBUG" or "ERROR")
+		
+		t = list(arg)
+		s = f"{convertTime(time.time())} | {pre} |: "
+		for i in range(len(t)): # dump vararg to string
+			s += str(t[i]) + " "
+		
+		log_msg += s + "\r\n"
+		print(s) # this is _needs_ to be sent only when usb is plugged in. possibly no web console if usb
+		if tcp is not None:
+			tcp.send_message(s + "\r\n")
+		
 
 def trueMax(t):
 	last = 0
@@ -140,10 +183,12 @@ async def init():
 
 	brightness /= 100
 	
-	buff_size = (trueMax(channels) * 3) + 2 # this is more useful and respective of resources.  (num_leds * RGB) + headers
+	buff_size = (trueMax(channels) * 3) + 2 # this is more useful and respectful of resources.  (num_leds * RGB) + headers
 	if buff_size > max_buffer_size:
 		debugger(f"Too many LEDs: {(max_buffer_size - 2) / 3} / {(buff_size - 2) / 3}")
 		return False
+	
+	host_ip = connectWLAN()
 	
 	debugger("Local IP:", host_ip)
 	
@@ -155,20 +200,25 @@ async def init():
 			pixels[i].show()
 		
 	debugger("Channels initiated:", len(pixels))
-
-	host_ip = connectWLAN() # moved after strip creation for visual indicator if this is causing it to terminate
 	
 	if host_ip:
 		server.add_routes([
+			# Artemis endpoints
 			Route("/", POST, handleRoot),
 			Route("/enableUDP", POST, enableUDP),
 			Route("/disableUDP", POST, disableUDP),
 			Route("/reset", GET, handleReset),
 			Route("/config", GET, handleConfig),
 			Route("/update", POST, handleUpdate),
-		])	
+			
+			# my endpoints
+			Route("/console", GET, serveConsole),
+			Route("/connectTCP", GET, connectTCP)
+		])
 		
 		server.start(host_ip, port = http_port)
+		debugger("Server started")
+		
 		await gather(
 			create_task(poll())
 		)
@@ -181,10 +231,17 @@ async def init():
 
 
 async def poll():
+	global served
 	while True:
 		try:
 			server.poll()
 			create_task(readUDP()) # same thread will cause it to hang
+			
+			if tcp is not None:
+				if not served: # init web console
+					served = True
+					tcp.send_message(log_msg)
+					
 		except Exception as e:
 			if e == KeyboardInterrupt:
 				handleReset()
@@ -230,9 +287,7 @@ async def readUDP():
 
 # [ init ] ----------------------
 if __name__ == "__main__":
-	sleep(5) # wait to make sure pico is booted before trying to start wifi
 	success = run(init())
 	if not success:
 		debugger("Rebooting...")
 		microcontroller.reset()
-		
