@@ -1,68 +1,154 @@
-# [ imports ] -------------------
-import wifi
-import board
+import network
+import socket
+import asyncio
+import machine
 import json
-import socketpool
-import microcontroller
-import time
 
-from adafruit_httpserver import Server, Request, Response, Route, FileResponse, Websocket, GET, POST
 from neopixel import NeoPixel
-from asyncio import create_task, gather, run, sleep as async_sleep
-# [ imports ] -------------------
 
-# [ settings ] ------------------
+# -- [ settings ] --
 ssid = "ssid"
 passw = "passw"
 
-channels = [
-	[board.GP0, 37], # change board.GP6 to board.D8 for a pi other than a pico
-	[board.GP8, 0],
-	[board.GP5, 0],
-	[board.GP6, 0]
-]
 brightness = 50 # 50%
+debug = True
 
-debug = True # enable this if problems arise
-# [ settings ] ------------------
+# -- [ pre-define ] --
+max_udp_buffer_size = (255 * 3) + 2 # max buffer set by RGB.NET client
+udp__buffer_size = 0
 
-# [ pre-define ] ----------------
-max_buffer_size = (255 * 3) + 2 # max buffer set by RGB.NET client
-buff_size = 0
+udp_port = 1872
+tcp_port = 80
 
-remote_ip = None		  # address of the remote connection
-udp_port = None			  # port to use for the UDP sock. Artemis sends `1872`
-http_port = 80			  # Artemis uses `80`
-host_ip = None			  # address of the local machine
+unbound = False # find a better way
 
-pool = socketpool.SocketPool(wifi.radio)
-udp = pool.socket(pool.AF_INET, pool.SOCK_DGRAM)
-udp.settimeout(0.01)
+endpoints = {}
+channels = [ # serves as a reference to config
+	[machine.Pin(0), 37], # change board.GP6 to board.D8 for a pi other than a pico
+	[machine.Pin(5), 0],
+	[machine.Pin(6), 0],
+	[machine.Pin(8), 0]
+]
+pixels = [] # the actual controller
+for i in range(len(channels)): 
+	if channels[i][1] > 0: 
+		pixels.insert(i, NeoPixel(channels[i][0], channels[i][1]))
+		#pixels.fill((0, 0, 255))
+		#pixels.write()
 
-server = Server(pool, debug = True)
-tcp = None
-log_msg = ""
-served = False
+# -- [ core functions ] --
+def connectWLAN():
+	try:
+		wlan = network.WLAN(network.STA_IF)
+		wlan.active(True)
+		wlan.connect(ssid, passw)
+		return str(wlan.ifconfig()[0])
+	except Exception as e:
+		print("errored", e)
+		machine.reset()
 
-pixels = []
-# [ pre-define ] ----------------
+def createSock(host, port, timeout = 0.3, udp = False):
+	# lower timeout = better. TCP timeout is causing missed packets for UDP
+	# figure out how to properly make that asynchronous
+	#
+	# asyncio httpserver _may_ be the answer if i can figure out how to poll udp properly
+	sock = socket.socket(socket.AF_INET, (udp == False and socket.SOCK_STREAM or socket.SOCK_DGRAM))
+	sock.settimeout(timeout)
+	sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	sock.bind((host_ip, port))
+	if udp == False:
+		sock.listen(2)
+		print(f"Listening at {host_ip}:{tcp_port}")
+	else:
+		print(f"UDP bound to {host_ip}:{udp_port}")
+	
+	return sock
 
-# [ server routes ] -------------
-def handleRoot(req: Request):
-	return success(req, body = f'''
+async def main(host_ip):
+	global brightness
+	global udp_buffer_size
+	brightness /= 100
+	udp_buffer_size = (trueMax(channels) * 3) + 2 # more respectful of resources.  (num_leds * RGB) + headers
+	
+	if udp_buffer_size > max_udp_buffer_size:
+		print(f"Too many LEDs: {(max_udp_size - 2) / 3} / {(udp_size - 2) / 3}")
+		machine.reset()
+	
+	tcp = createSock(host_ip, tcp_port)
+	udp = createSock(host_ip, udp_port, udp = True)
+	
+	while True: # unfortunately this is still synchronous :(
+		await asyncio.gather(
+			asyncio.create_task(readTCP(tcp)),
+			asyncio.create_task(readUDP(udp))
+		)
+		
+async def readTCP(sock):
+	client, addr = None, None
+	try:
+		client, addr = sock.accept()
+	except OSError as e: # suppress
+		pass
+	finally:
+		if client:
+			req = client.recv(4096)
+			req = str(req, "utf-8").split()
+			
+			print(f"{addr} requested {req[1]}")
+			endpoint = findEndpoint(req[1])
+			
+			client.send("HTTP/1.0 200 OK\r\n\r\n" + endpoint(req[len(req) - 1]))
+			client.close()
+
+async def readUDP(sock):
+	data, addr = None, None
+	if unbound == False:
+		try:
+			data, addr = sock.recvfrom(udp_buffer_size)
+		except OSError as e: # suppress
+			pass
+		finally:
+			if data:
+				#print(f"Received UDP from {addr}") # for debugging
+				seq, channel, bytes = data[0], data[1] - 1, list(data[2:udp_buffer_size])
+
+				for i in range(channels[channel][1]): # not writing maybe my wiring is wrong
+					pixels[channel][i] = (
+						int(bytes[(i * 3)] * brightness),     # R index / brightness
+						int(bytes[(i * 3) + 1] * brightness), # G index / brightness
+						int(bytes[(i * 3) + 2] * brightness)  # B index / brightness
+					)
+				
+				pixels[channel].write()
+			
+def findEndpoint(endpoint):
+	if endpoint in endpoints: # this has failed before??
+		return endpoints[endpoint]
+
+def trueMax(t):
+	last = 0
+	for i in range(len(t)):
+		if t[i][1] > last:
+			last = t[i][1]
+			
+	return last
+
+# -- [ artemis endpoints ] --
+def serveRoot(body):
+	return f'''
 		<html>
 			<head>
-				<title>Artemis-RGB client in CircuitPython :)</title>
+				<title>About PixelPusher</title>
 			</head>
 			<body>
-				<h1>PixelPusher</h1>
-				This device is currently running CircuitPython on a Pi Pico!<br/>
+				<h1>PixelPusher </h1>
+				This device is currently running MicroPython on a Pi Pico W!<br/>
 				<br/>
 				Check <a href="https://github.com/ProtectiveManEgg/PixelPusher">PixelPusher</a> for more info on this project!<br/>
 				Special thanks to <a href=\"https://github.com/DarthAffe/RGB.NET\">RGB.NET</a>! I based this project upon their NodeMCU Sketch!<br/>
 				<br/>
 				<h3>Configuration:</h3>
-				<b>UDP:</b> "{remote_ip is not None and "enabled (" + str(udp_port) + ")" or "disabled"}"<br/>
+				<b>UDP:</b> "{unbound == False and "enabled (" + str(udp_port) + ")" or "disabled"}"<br/>
 				<br/>
 				<b>Channel 1</b><br/>
 				Leds: "{channels[0][1]}"<br/>
@@ -82,212 +168,61 @@ def handleRoot(req: Request):
 				<br/>
 			</body>
 		</html>";
-	''')
+	'''
+endpoints["/"] = serveRoot
 
-def enableUDP(req: Request):
-	global remote_ip
-	global udp_port
-	remote_ip = req.client_address[0]
-	udp_port = int(req.body)
-	
-	udp.bind((host_ip, udp_port))
-	
-	return success(req)
-
-def disableUDP(req: Request):
-	remote_ip = None # this is my toggle for `readUDP`
-	udp.close()
-	
-	return success(req)
-
-def handleReset(req: Request = None): # should allow no request to be sent?
-	for i in range(len(pixels)):
-		pixels[i].fill((0, 0, 0))
-		pixels[i].show()
-	
-	return (req is not None and success(req) or False)
-
-def handleConfig(req: Request):
+def serveConfig(body):
 	config = [
 		{"channel": 1, "leds": channels[0][1]},
 		{"channel": 2, "leds": channels[1][1]},
 		{"channel": 3, "leds": channels[2][1]},
 		{"channel": 4, "leds": channels[3][1]}
 	]
+	return json.dumps(config)
+endpoints["/config"] = serveConfig
+
+def serveReset(body):
+	for i in range(len(pixels)):
+		pixels[i].fill((0, 0, 0))
+		pixels[i].write() # show?
 	
-	return success(req, body = json.dumps(config), json = True)
+	return ""
+endpoints["/reset"] = serveReset
 
-def handleUpdate(req: Request):
-	# this is an alternate to the udp socket i think
-	# i've never actually seen it called
+def serveUpdate(body):
+	# same as udp but over http i think
 	
-	return success(req)
+	return ""
+endpoints["/update"] = serveUpdate
 
-def serveConsole(req: Request):
-	return FileResponse(req, "console.html", "/sd")
-
-def connectTCP(req: Request): # write a receiver to process a cmd to send all previous log data instead
-							  # of relying on `served` since it needs a debug to happen to send it
-							  # can close the receiver right after since we just want `init`
-	global tcp
-	if tcp is not None:
-		tcp.close()
-		
-	tcp = Websocket(req)
+def enableUDP(body):
+	global unbound
 	
-	return tcp
-# [ server routes ] -------------
-
-# [ functions ] -----------------
-def convertTime(seconds):
-	seconds %= 24 * 3600
-	hour = seconds // 3600
-	seconds %= 3600
-	minutes = seconds // 60
-	seconds %= 60
+	#udp_port = int(body) # need it bound sooner. using static value. look into this
+	unbound = False
 	
-	return "%02d:%02d:%02d" % (hour, minutes, seconds)
+	return ""
+endpoints["/enableUDP"] = enableUDP
 
-def debugger(*arg, prefix = None): # maybe make this write out to a log file
-	global log_msg
-	global served
-	if debug:
-		# check if usb. usb => REPL, no usb => web console. todo: make it log to a file on the (small) flash. 
-		# dunno how to pull that off yet. unfortunately using the REPL blocks file writing in python
-		pre = (prefix is None and "DEBUG" or "ERROR")
-		
-		t = list(arg)
-		s = f"{convertTime(time.time())} | {pre} |: "
-		for i in range(len(t)): # dump vararg to string
-			s += str(t[i]) + " "
-		
-		log_msg += s + "\r\n"
-		print(s) # this is _needs_ to be sent only when usb is plugged in. possibly no web console if usb
-		if tcp is not None:
-			tcp.send_message(s + "\r\n")
-		
-
-def trueMax(t):
-	last = 0
-	for i in range(len(channels)):
-		if channels[i][1] > last:
-			last = channels[i][1]
-			
-	return last
-
-async def init():
-	global brightness
-	global pixels
-	global buff_size
-	global host_ip
-
-	brightness /= 100
+def disableUDP(body):
+	global unbound
+	unbound = True
 	
-	buff_size = (trueMax(channels) * 3) + 2 # this is more useful and respectful of resources.  (num_leds * RGB) + headers
-	if buff_size > max_buffer_size:
-		debugger(f"Too many LEDs: {(max_buffer_size - 2) / 3} / {(buff_size - 2) / 3}")
-		return False
+	return ""
+endpoints["/disableUDP"] = disableUDP
+
+# -- [[ my endpoints ]]
+def serveConsole(body):
+	f = open("./sd/console.html", "r")
+	d = f.read()
+	f.close()
 	
-	host_ip = connectWLAN()
-	
-	debugger("Local IP:", host_ip)
-	
-	for i in range(len(channels)):
-		if channels[i][1] > 0: # only initialize channels with leds
-			pixels.insert(i, NeoPixel(channels[i][0], channels[i][1], auto_write = False))
+	return d
+endpoints["/console"] = serveConsole
 
-			pixels[i].fill((0, 255, 0))
-			pixels[i].show()
-		
-	debugger("Channels initiated:", len(pixels))
-	
-	if host_ip:
-		server.add_routes([
-			# Artemis endpoints
-			Route("/", POST, handleRoot),
-			Route("/enableUDP", POST, enableUDP),
-			Route("/disableUDP", POST, disableUDP),
-			Route("/reset", GET, handleReset),
-			Route("/config", GET, handleConfig),
-			Route("/update", POST, handleUpdate),
-			
-			# my endpoints
-			Route("/console", GET, serveConsole),
-			Route("/connectTCP", GET, connectTCP)
-		])
-		
-		server.start(host_ip, port = http_port)
-		debugger("Server started")
-		
-		await gather(
-			create_task(poll())
-		)
-		
-		return True
-	else:
-		debugger("Not connection found!")
-		return False
-		
-
-
-async def poll():
-	global served
-	while True:
-		try:
-			server.poll()
-			create_task(readUDP()) # same thread will cause it to hang
-			
-			if tcp is not None:
-				if not served: # init web console
-					served = True
-					tcp.send_message(log_msg)
-					
-		except Exception as e:
-			if e == KeyboardInterrupt:
-				handleReset()
-				raise debugger("Interrupted by user", prefix = True)
-		
-		await async_sleep(0)
-
-def connectWLAN():
-	try:
-		wifi.radio.connect(ssid, passw) 
-		return str(wifi.radio.ipv4_address)
-	except ConnectionError as e:
-		handleReset()
-		debugger(e, prefix = True)
-		raise
-
-def success(req, body = "", json = False):
-	return Response(req, content_type = (json and "application/json" or "text/html"), body = body)
-
-async def readUDP():
-	if remote_ip is not None:
-		try:
-			buff = bytearray(buff_size)
-			size, _ = udp.recvfrom_into(buff)
-			seq, channel, bytes = buff[0], buff[1] - 1, list(buff[2:size])
-			
-			for i in range(channels[channel][1]):
-				pixels[channel][i] = (
-					int(bytes[(i * 3)] * brightness),     # R index / brightness
-					int(bytes[(i * 3) + 1] * brightness), # G index / brightness
-					int(bytes[(i * 3) + 2] * brightness)  # B index / brightness
-				)
-			
-			pixels[channel].show()
-		
-		except Exception as e: # this stops ETIMEDOUT from crashing the server
-			if e == KeyboardInterrupt:
-				handleReset()
-				debugger("Interrupted by user", prefix = True)
-		
-	await async_sleep(0)
-# [ functions ] -----------------
-
-# [ init ] ----------------------
 if __name__ == "__main__":
-	success = run(init())
-	if not success:
-		debugger("Rebooting...")
-		microcontroller.reset()
+	host_ip = connectWLAN()
+	if host_ip is not None:
+		print("Successfully connectected to WIFI")
+		asyncio.run(main(host_ip))
+
