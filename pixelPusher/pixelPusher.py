@@ -38,7 +38,6 @@ class pixelPusher:
 			
 		print(f"Initiated {len(self.pixels)} channels")
 		
-		print("Attempting to connect to WIFI...")
 		self.connectWLAN(ssid, passw)
 		if wifi.radio.connected:
 			print("Connected as: ", self.ips["host"])
@@ -76,11 +75,11 @@ class pixelPusher:
 		return sock
 		
 	def connectWLAN(self, ssid, passw):
-		max_tries = 10
+		max_tries = 5
 		tried = 0
 		while wifi.radio.connected == False:
 			tried += 1
-			if now < max:
+			if tried < max_tries:
 				try:
 					print("Attempting to connect WIFI...")
 					wifi.radio.connect(ssid, passw)
