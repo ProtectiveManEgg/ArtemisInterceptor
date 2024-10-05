@@ -6,7 +6,7 @@ import time
 import builtins
 
 from socketpool import SocketPool as socketpool
-from adafruit_httpserver import Server, Request, Response, Route, GET, POST
+from adafruit_httpserver import Server, Request, Response, FileResponse, Route, GET, POST
 from neopixel import NeoPixel
 from asyncio import create_task, gather, run, sleep as async_sleep
 
@@ -48,7 +48,7 @@ class pixelPusher:
 	
 	async def start(self):
 		self.pool = socketpool(wifi.radio)
-		self.server = Server(self.pool, debug = True)
+		self.server = Server(self.pool, debug = True, root_path = "/sd")
 		
 		self.udp = self.createSock(self.ips["host"], self.ports["udp"], timeout = 0.01, udp = True)
 		
@@ -71,7 +71,6 @@ class pixelPusher:
 	def createSock(self, ip, port, timeout = 1, udp = False):
 		sock = self.pool.socket(self.pool.AF_INET, (udp == False and self.pool.SOCK_STREAM or self.pool.SOCK_DGRAM))
 		sock.settimeout(timeout)
-		#sock.setsockopt(self.pool.SOL_SOCKET, self.pool.SO_REUSEADDR, 1) # this may not match micropython
 		return sock
 		
 	def connectWLAN(self, ssid, passw):
@@ -145,42 +144,26 @@ class pixelPusher:
 			except OSError as e: # skip over etimedout
 				pass 
 		
-	# [ server routes ] -------------
-	def serveRoot(self, req: Request): # make this a static file and format in the variables somehow
-		return self.success(req, body = f'''
-			<html>
-				<head>
-					<title>Artemis-RGB client in CircuitPython :)</title>
-				</head>
-				<body>
-					<h1>PixelPusher</h1>
-					This device is currently running CircuitPython on a Pi Pico!<br/>
-					<br/>
-					Check <a href="https://github.com/ProtectiveManEgg/PixelPusher">PixelPusher</a> for more info on this project!<br/>
-					Special thanks to <a href=\"https://github.com/DarthAffe/RGB.NET\">RGB.NET</a>! I based this project upon their NodeMCU Sketch!<br/>
-					<br/>
-					<h3>Configuration:</h3>
-					<b>UDP:</b> "{self.ips["client"] is not None and "enabled (" + str(self.ports["udp"]) + ")" or "disabled"}"<br/>
-					<br/>
-					<b>Channel 1</b><br/>
-					Leds: "{self.channels[0][1]}"<br/>
-					Pin: "{self.channels[0][0]}"<br/>
-					<br/>
-					<b>Channel 2</b><br/>
-					Leds: "{self.channels[1][1]}"<br/>
-					Pin: "{self.channels[1][0]}"<br/>
-					<br/>
-					<b>Channel 4</b><br/>
-					Leds: "{self.channels[2][1]}"<br/>
-					Pin: "{self.channels[2][0]}"<br/>
-					<br/>
-					<b>Channel 4</b><br/>
-					Leds: "{self.channels[3][1]}"<br/>
-					Pin: "{self.channels[3][0]}"<br/>
-					<br/>
-				</body>
-			</html>";
-		''')
+	# [ server routes ] -------------	
+	def serveRoot(self, req: Request): # i would like to stylize this better tho
+		return FileResponse(req, "/root.html")
+		
+	def serveConfig(self, req: Request):
+		config = [
+			{"enabled": (self.ips["client"] is not None and True or False), "port": self.ports["udp"]},
+			{"channel": str(self.channels[0][0]), "leds": self.channels[0][1]},
+			{"channel": str(self.channels[1][0]), "leds": self.channels[1][1]},
+			{"channel": str(self.channels[2][0]), "leds": self.channels[2][1]},
+			{"channel": str(self.channels[3][0]), "leds": self.channels[3][1]}
+		]
+		if not req.query_params.get("root"): # artemis can't handle the udp index
+			del config[:1]
+			for i in range(len(config)):
+				config[i]["channel"] = i + 1
+			
+		print(config)
+		
+		return self.success(req, body = json.dumps(config), encoded = True)
 
 	def enableUDP(self, req: Request):
 		self.ips["client"] = req.client_address[0] # may not need these references though
@@ -196,22 +179,12 @@ class pixelPusher:
 		
 		return self.success(req)
 
-	def reset(self, req: Request = None): # should allow no request to be sent?
+	def reset(self, req: Request = None):
 		for i in range(len(self.pixels)):
 			self.pixels[i].fill((0, 0, 0))
 			self.pixels[i].show()
 		
 		return (req is not None and self.success(req) or False)
-
-	def serveConfig(self, req: Request):
-		config = [
-			{"channel": 1, "leds": self.channels[0][1]},
-			{"channel": 2, "leds": self.channels[1][1]},
-			{"channel": 3, "leds": self.channels[2][1]},
-			{"channel": 4, "leds": self.channels[3][1]}
-		]
-		
-		return self.success(req, body = json.dumps(config), encoded = True)
 
 	def update(self, req: Request):
 		# this is an alternate to the udp socket i think

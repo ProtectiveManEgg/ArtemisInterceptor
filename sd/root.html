@@ -1,0 +1,43 @@
+<html>
+	<head>
+		<title>PixelPusher</title>
+	</head>
+	<script>
+		fetch("/config?root=True")
+			.then((response) => response.json())
+			.then((ResponseJSON) => {
+				console.log(ResponseJSON)	
+				const container = document.getElementById("container")
+				for (i = 1; i < 5; i++) {
+					var leds = document.createElement("dt")
+					var pin = document.createElement("dt")
+					var head = document.createElement("h3")
+					head.innerHTML = "Channel " + i
+					head.style.marginBottom = 4
+					leds.innerHTML = "Leds: \"" + ResponseJSON[i].leds + "\""
+					leds.style.marginLeft = 20
+					pin.innerHTML = "Pin: \"" + ResponseJSON[i].channel + "\""
+					pin.style.marginLeft = 20
+					
+					container.appendChild(head)
+					container.appendChild(leds)
+					container.appendChild(pin)
+				}
+				// fix handling of no port
+				document.getElementById("udp").innerHTML = ResponseJSON[0].enabled + (ResponseJSON[0].port == null && "" || "(" + ResponseJSON[0].port + ")")
+				document.getElementById("udp").style.marginBottom = 4
+			})
+	</script>
+	<body>
+		<h1>PixelPusher</h1>
+		This device is currently running CircuitPython on a Pi Pico!<br/>
+		<br/>
+		Check <a href="https://github.com/ProtectiveManEgg/PixelPusher">PixelPusher</a> for more info on this project!<br/>
+		Special thanks to <a href=\"https://github.com/DarthAffe/RGB.NET\">RGB.NET</a>! I based this project upon their NodeMCU Sketch!<br/>
+		<br/>		
+		<h2>Configuration:</h2>
+		<d1 id="container">
+			<h3 style="display: inline">UDP: </h3><t id="udp"/>
+		</d1>
+	</body>
+</html>
