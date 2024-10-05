@@ -38,9 +38,12 @@ pusher("awesome wifi", "password", brightness = brightness, channels = channels)
 
 ## Notes to self:
 - 3v3 (OUT) not 3v3_EN
-- make some sort of insulated backplate or mounting plate for the Pi
+- going to mount pi and shifter to a piece of acrylic; then going to mount the acrylic backplate to an ssd tray
 - test more than 1 channel (lol)
 
 ## Test-bench Circuit Drawing [Updated]
-<b>Will update schematic when I get to soldering and mounting.</b>
-![now](https://img001.prntscr.com/file/img001/TrDUJjuISe-vrZhdo60_sQ.png)
+<b>When I attach VSYS, there will be common ground instead of how it's isolated in the drawing!</b>
+
+Currently all that's attached to the breadboard still is 5v and GND. No flickering, maybe the capacitor is unnecessary!
+![image](https://github.com/user-attachments/assets/5dc68c26-49ef-4d34-a5c2-dfa5bfb1d74a)
+
